@@ -1,6 +1,6 @@
 import os
 import requests
-from graphixconfig import GraphDBHost, GraphDBPort, GraphDBRepoId
+import graphixconfig
 from tracing import trace
 from enum import Enum
 from SPARQLWrapper import JSON, SPARQLWrapper
@@ -13,10 +13,15 @@ class GraphDBLabel(Enum):
     SCHEMA = "Schema"
     DATA = "Data"
 
-def GraphDBUriPrefix(host:str = GraphDBHost, port:int = GraphDBPort) -> str:
+def GraphDBUriPrefix(host:str = None, port:int = None) -> str:
+    if host is None: host = graphixconfig.GraphDBHost
+    if port is None: port = graphixconfig.GraphDBPort
     return f"http://{host}:{port}"
 
-def GraphDBUri(host:str = GraphDBHost, port:int = GraphDBPort, repoid:str = GraphDBRepoId):
+def GraphDBUri(host:str = None, port:int = None, repoid:str = None):
+    if host is None: host = graphixconfig.GraphDBHost
+    if port is None: port = graphixconfig.GraphDBPort
+    if repoid is None: repoid = graphixconfig.GraphDBRepoId
     return GraphDBUriPrefix(host, port) + f"/repositories/{repoid}"
 
 # Checks if a repository exists using the GraphDB REST Management API.
@@ -74,7 +79,10 @@ def ClearRepository(repo_id:str):
         trace(f"🧨 An error occurred while clearing repository '{repo_id}': {e}")
         exit(1)
 
-def StartGraphClients(host:str=GraphDBHost, port:int=GraphDBPort, repoid:str=GraphDBRepoId) -> None:
+def StartGraphClients(host:str=None, port:int=None, repoid:str=None) -> None:
+    if host is None: host = graphixconfig.GraphDBHost
+    if port is None: port = graphixconfig.GraphDBPort
+    if repoid is None: repoid = graphixconfig.GraphDBRepoId
     global _GraphQueryClient, _GraphUpdateClient
     try:
         if not CheckRepositoryExists(host, port, repoid):

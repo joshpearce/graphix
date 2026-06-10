@@ -1,6 +1,7 @@
 import sys
 import argparse
-from graphixconfig import LoadGraphixConfig, GraphDBRepoId
+import graphixconfig
+from graphixconfig import LoadGraphixConfig
 from tracing import trace
 from graphdb import StartGraphClients, GraphDBLabel, UploadTtl, ClearRepository
 from L1_analyzer import L1_SemanticAnalyzer
@@ -53,17 +54,17 @@ def main(args):
     if parsed_args.schema:
         trace(f"📥 Schema file provided: {parsed_args.schema}")
         UploadTtl(
-            repo_id=GraphDBRepoId,
+            repo_id=graphixconfig.GraphDBRepoId,
             file_path=parsed_args.schema,
             label=GraphDBLabel.SCHEMA)
     elif parsed_args.data:
         trace(f"📥 Data file provided: {parsed_args.data}")
         UploadTtl(
-            repo_id=GraphDBRepoId,
+            repo_id=graphixconfig.GraphDBRepoId,
             file_path=parsed_args.data,
             label=GraphDBLabel.DATA)
     elif parsed_args.func == "ClearRepo":
-        ClearRepository(repo_id=GraphDBRepoId)
+        ClearRepository(repo_id=graphixconfig.GraphDBRepoId)
     elif parsed_args.func == "AnalyzeL1":
         L1_SemanticAnalyzer()
     elif parsed_args.func == "AnalyzeL2":
