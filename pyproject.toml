@@ -1,0 +1,9 @@
+[project]
+name = "graphix"
+version = "0.1.0"
+description = "GRAPHIX — RDF/SPARQL threat modeling and semantic analysis over GraphDB"
+requires-python = ">=3.11"
+dependencies = [
+    "requests",
+    "sparqlwrapper",
+]
