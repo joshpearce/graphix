@@ -1,0 +1,114 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      proxy:
+        condition: service_healthy
+      graphdb:
+        condition: service_started
+    networks:
+      - isolated
+    environment:
+      - http_proxy=http://proxy:8080
+      - https_proxy=http://proxy:8080
+      - HTTP_PROXY=http://proxy:8080
+      - HTTPS_PROXY=http://proxy:8080
+      # graphdb is on the internal network — it must bypass the mitmproxy, or
+      # SPARQL/REST calls to it get 403'd as a non-allowlisted domain.
+      - no_proxy=localhost,127.0.0.1,graphdb
+      - NO_PROXY=localhost,127.0.0.1,graphdb
+      - SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+      - REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+      - NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
+      - GIT_SSL_CAINFO=/etc/ssl/certs/ca-certificates.crt
+      - UV_NATIVE_TLS=1
+      - IS_DEMO=1
+    volumes:
+      - /Users/josh/code/graphix:/workspaces/graphix:cached
+      - proxy-certs:/tmp/mitmproxy-certs:ro
+      # Persistent dotfiles (from template seed files)
+      - /Users/josh/code/graphix/.devcontainer/containers/app/home/vscode/.bashrc:/home/vscode/.bashrc:cached
+      - /Users/josh/code/graphix/.devcontainer/containers/app/home/vscode/.zshrc:/home/vscode/.zshrc:cached
+      - /Users/josh/code/graphix/.devcontainer/containers/app/home/vscode/.tmux.conf:/home/vscode/.tmux.conf:cached
+      - /Users/josh/code/graphix/.devcontainer/containers/app/home/vscode/.claude:/home/vscode/.claude:cached
+      - /Users/josh/.config/devagent/claude-token:/run/secrets/claude-token:ro
+      - /Users/josh/.config/devagent/github_token:/run/secrets/github-token:ro
+    cap_drop:
+      - NET_RAW
+      - SYS_ADMIN
+      - SYS_PTRACE
+      - MKNOD
+      - NET_ADMIN
+      - SYS_MODULE
+      - SYS_RAWIO
+      - SYS_BOOT
+      - SYS_NICE
+      - SYS_RESOURCE
+    mem_limit: 4g
+    cpus: "2"
+    pids_limit: 512
+    labels:
+      devagent.managed: "true"
+      devagent.project_path: "/Users/josh/code/graphix"
+      devagent.template: "python-fullstack"
+    entrypoint: ["sh", "/workspaces/graphix/.devcontainer/entrypoint.sh"]
+    command: ["sleep", "infinity"]
+
+  graphdb:
+    image: ontotext/graphdb:11.3.3
+    container_name: graphix-graphdb
+    # "isolated" lets the app reach the DB at host "graphdb". "dbaccess" is a
+    # plain (non-internal) bridge whose ONLY purpose is to make the published
+    # port below routable from the host — a container on an internal-only
+    # network cannot publish ports. Not on "external" (the proxy's internet
+    # leg): the DB needs no outbound access.
+    networks:
+      - isolated
+      - dbaccess
+    # Published so the Workbench UI / REST API is reachable from the host browser
+    # at http://localhost:7200 (e.g. to create the GRAPHIX repository).
+    ports:
+      - "7200:7200"
+    environment:
+      # JVM heap only. The Free license is auto-detected from the persisted home
+      # at work/graphdb.license (see volume below) — no -Dgraphdb.license.file
+      # flag needed. The license is issued per-user against the 11.3 line.
+      GDB_JAVA_OPTS: "-Xms1g -Xmx2g"
+    # Persist the full GraphDB home (data + conf + repositories) under
+    # .devcontainer/containers so it survives container rebuilds.
+    volumes:
+      - /Users/josh/code/graphix/.devcontainer/containers/graphdb/home:/opt/graphdb/home
+    mem_limit: 3g
+    labels:
+      devagent.managed: "true"
+
+  proxy:
+    image: mitmproxy/mitmproxy:latest
+    networks:
+      - isolated
+      - external
+    volumes:
+      - proxy-certs:/home/mitmproxy/.mitmproxy
+      - /Users/josh/code/graphix/.devcontainer/containers/proxy/opt/devagent-proxy:/opt/devagent-proxy
+    command: ["mitmdump", "--listen-host", "0.0.0.0", "--listen-port", "8080", "-s", "/opt/devagent-proxy/filter.py"]
+    healthcheck:
+      test: ["CMD", "test", "-f", "/home/mitmproxy/.mitmproxy/mitmproxy-ca-cert.pem"]
+      interval: 2s
+      timeout: 1s
+      retries: 15
+      start_period: 5s
+    labels:
+      devagent.managed: "true"
+      devagent.sidecar_type: "proxy"
+
+networks:
+  isolated:
+    internal: true
+  external:
+  # Non-internal bridge carrying only graphdb's published 7200 to the host.
+  dbaccess:
+
+volumes:
+  proxy-certs:

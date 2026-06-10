@@ -1,0 +1,7 @@
+# Runtime data from container mounts
+containers/app/home/vscode/.claude/
+containers/proxy/opt/devagent-proxy/logs/*.jsonl
+
+# GraphDB persisted home (data, conf, repositories) — keep the dir, ignore contents
+containers/graphdb/home/*
+!containers/graphdb/home/.gitkeep
