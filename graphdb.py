@@ -8,6 +8,7 @@ from typing import Any, cast, Dict, Optional
 
 _GraphQueryClient: Optional[SPARQLWrapper] = None
 _GraphUpdateClient: Optional[SPARQLWrapper] = None
+_delegate = None  # set by StartGraphClients when backend != "graphdb"
 
 class GraphDBLabel(Enum):
     SCHEMA = "Schema"
@@ -41,6 +42,7 @@ def CheckRepositoryExists(host: str, port: int, repoid: str) -> bool:
         return False
 # Generic function to upload TTL files to GraphDB.
 def UploadTtl(repo_id:str, file_path:str, label:GraphDBLabel):
+    if _delegate: return _delegate.UploadTtl(repo_id, file_path, label)
     if not os.path.exists(file_path):
         trace(f"🧨 Error: {label.value} file '{file_path}' not found.")
         exit(1)
@@ -65,6 +67,7 @@ def UploadTtl(repo_id:str, file_path:str, label:GraphDBLabel):
 
 # Clears all data from the specified GraphDB repository.
 def ClearRepository(repo_id:str):
+    if _delegate: return _delegate.ClearRepository(repo_id)
     url = GraphDBUriPrefix() + f"/repositories/{repo_id}/statements"
     try:
         # Sending DELETE request with an empty 'update' or no params 
@@ -83,7 +86,12 @@ def StartGraphClients(host:str=None, port:int=None, repoid:str=None) -> None:
     if host is None: host = graphixconfig.GraphDBHost
     if port is None: port = graphixconfig.GraphDBPort
     if repoid is None: repoid = graphixconfig.GraphDBRepoId
-    global _GraphQueryClient, _GraphUpdateClient
+    global _GraphQueryClient, _GraphUpdateClient, _delegate
+    if graphixconfig.GraphDBBackend == "rdflib":
+        import rdflib_backend as _mod
+        _delegate = _mod
+        _mod.StartGraphClients(host, port, repoid)
+        return
     try:
         if not CheckRepositoryExists(host, port, repoid):
             raise ValueError(f"GraphDB repository '{repoid}' does not exist at {host}:{port}")
@@ -107,6 +115,7 @@ def GraphUpdateClient() -> SPARQLWrapper:
     return _GraphUpdateClient
 
 def GetBindings(query: str) -> Any:
+    if _delegate: return _delegate.GetBindings(query)
     client = GraphQueryClient()
     client.setQuery(query)
     client.setReturnFormat(JSON)

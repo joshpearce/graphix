@@ -105,12 +105,14 @@ name = "graphix"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "rdflib" },
     { name = "requests" },
     { name = "sparqlwrapper" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "rdflib" },
     { name = "requests" },
     { name = "sparqlwrapper" },
 ]

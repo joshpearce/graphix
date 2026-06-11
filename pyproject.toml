@@ -5,5 +5,6 @@ description = "GRAPHIX — RDF/SPARQL threat modeling and semantic analysis over
 requires-python = ">=3.11"
 dependencies = [
     "requests",
+    "rdflib",
     "sparqlwrapper",
 ]
